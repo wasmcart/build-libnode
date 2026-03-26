@@ -80,7 +80,7 @@ jobs:
         shell: cmd
         run: |
           cd node-src
-          call vcbuild.bat release ltcg static no-cctest nointl nonpm noinspector
+          call vcbuild.bat release ltcg static no-cctest without-intl nonpm nocorepack
       - name: Collect outputs
         shell: bash
         run: |
