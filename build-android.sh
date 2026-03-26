@@ -43,7 +43,7 @@ cd "$SRC_DIR"
 # Patch android_configure.py to add our flags to the configure command
 # The script hardcodes: ./configure --dest-cpu=... --dest-os=android --openssl-no-asm --cross-compiling
 # We add: --fully-static --without-npm --without-inspector --without-intl --without-corepack
-sed -i 's|--cross-compiling")|--cross-compiling --fully-static --without-npm --without-inspector --without-intl --without-corepack")|' android_configure.py
+sed -i 's|--cross-compiling")|--cross-compiling --shared --without-npm --without-inspector --without-intl --without-corepack")|' android_configure.py
 
 echo "Configuring for Android aarch64..."
 ./android-configure "$NDK" 24 arm64
@@ -53,9 +53,16 @@ echo "Building with ${NPROC} jobs..."
 make -j"$NPROC"
 
 echo "Collecting outputs to ${OUT_DIR}..."
-cp out/Release/libnode.a "$OUT_DIR/" 2>/dev/null || \
-    cp out/Release/obj.target/libnode.a "$OUT_DIR/" 2>/dev/null || \
-    { echo "Error: libnode.a not found"; exit 1; }
+# Android cross-compile produces shared lib (--fully-static doesn't work for cross-compile)
+cp out/Release/libnode.so.* "$OUT_DIR/" 2>/dev/null || true
+cp out/Release/libnode.a "$OUT_DIR/" 2>/dev/null || true
+cd "$OUT_DIR"
+SOFILE=$(ls libnode.so.* 2>/dev/null | head -1)
+if [ -n "$SOFILE" ]; then
+    ln -sf "$SOFILE" libnode.so
+fi
+cd "$SRC_DIR"
+ls "$OUT_DIR"/libnode.* || { echo "Error: no libnode output found"; exit 1; }
 
 INCLUDE_DIR="${OUT_DIR}/include"
 mkdir -p "$INCLUDE_DIR"
@@ -69,4 +76,4 @@ echo "${NODE_VERSION}" > "$OUT_DIR/NODE_VERSION"
 
 echo ""
 echo "=== Done: ${OUT_DIR} ==="
-ls -lh "$OUT_DIR"/libnode.a
+ls -lh "$OUT_DIR"/libnode.*
