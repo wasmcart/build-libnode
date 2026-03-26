@@ -41,7 +41,7 @@ fi
 cd "$SRC_DIR"
 
 echo "Configuring for Android..."
-./android-configure "$NDK" arm64 \
+./android-configure "$NDK" 24 arm64 \
     --fully-static \
     --without-npm \
     --without-inspector \
