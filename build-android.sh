@@ -12,7 +12,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 NODE_VERSION=$(cat "$SCRIPT_DIR/NODE_VERSION" | tr -d '[:space:]')
 NDK="${ANDROID_NDK_HOME:-${NDK_PATH:-}}"
-ANDROID_SDK_VERSION=24
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,18 +40,14 @@ fi
 
 cd "$SRC_DIR"
 
-# Set up NDK toolchain environment
-HOST_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-HOST_ARCH=$(uname -m)
-TOOLCHAIN="${NDK}/toolchains/llvm/prebuilt/${HOST_OS}-${HOST_ARCH}"
-
-export CC="${TOOLCHAIN}/bin/aarch64-linux-android${ANDROID_SDK_VERSION}-clang"
-export CXX="${TOOLCHAIN}/bin/aarch64-linux-android${ANDROID_SDK_VERSION}-clang++"
-export AR="${TOOLCHAIN}/bin/llvm-ar"
-export RANLIB="${TOOLCHAIN}/bin/llvm-ranlib"
-export LINK="${CXX}"
-
+# Use android-configure to set up GYP_DEFINES (NDK path, toolchain, etc.)
+# Then patch the generated config to add our flags
 echo "Configuring for Android aarch64..."
+./android-configure "$NDK" 24 arm64
+
+# Re-run configure with additional flags (android-configure already set the env)
+# GYP_DEFINES is inherited from android-configure's environment setup
+export GYP_DEFINES="android_target_arch=arm64 android_ndk_path=${NDK} ${GYP_DEFINES:-}"
 ./configure \
     --dest-cpu=arm64 \
     --dest-os=android \
