@@ -40,24 +40,13 @@ fi
 
 cd "$SRC_DIR"
 
-# Use android-configure to set up GYP_DEFINES (NDK path, toolchain, etc.)
-# Then patch the generated config to add our flags
+# Patch android_configure.py to add our flags to the configure command
+# The script hardcodes: ./configure --dest-cpu=... --dest-os=android --openssl-no-asm --cross-compiling
+# We add: --fully-static --without-npm --without-inspector --without-intl --without-corepack
+sed -i 's|--cross-compiling")|--cross-compiling --fully-static --without-npm --without-inspector --without-intl --without-corepack")|' android_configure.py
+
 echo "Configuring for Android aarch64..."
 ./android-configure "$NDK" 24 arm64
-
-# Re-run configure with additional flags (android-configure already set the env)
-# GYP_DEFINES is inherited from android-configure's environment setup
-export GYP_DEFINES="android_target_arch=arm64 android_ndk_path=${NDK} ${GYP_DEFINES:-}"
-./configure \
-    --dest-cpu=arm64 \
-    --dest-os=android \
-    --openssl-no-asm \
-    --cross-compiling \
-    --fully-static \
-    --without-npm \
-    --without-inspector \
-    --without-intl \
-    --without-corepack
 
 NPROC=$(nproc 2>/dev/null || echo 4)
 echo "Building with ${NPROC} jobs..."
