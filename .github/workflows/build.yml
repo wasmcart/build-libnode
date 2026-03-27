@@ -51,7 +51,8 @@ jobs:
           path: libnode-macos-x86_64.tar.gz
 
   build-macos-aarch64:
-    runs-on: macos-latest
+    runs-on: macos-15
+    timeout-minutes: 480
     steps:
       - uses: actions/checkout@v6
       - name: Build
