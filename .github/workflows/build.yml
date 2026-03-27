@@ -10,14 +10,14 @@ jobs:
   build-linux-x86_64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y python3 g++ make
       - name: Build
         run: ./build.sh
       - name: Package
         run: cd out/linux-x86_64 && tar czf ../../libnode-linux-x86_64.tar.gz .
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: libnode-linux-x86_64
           path: libnode-linux-x86_64.tar.gz
@@ -25,14 +25,14 @@ jobs:
   build-linux-aarch64:
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y python3 g++ make
       - name: Build
         run: ./build.sh
       - name: Package
         run: cd out/linux-aarch64 && tar czf ../../libnode-linux-aarch64.tar.gz .
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: libnode-linux-aarch64
           path: libnode-linux-aarch64.tar.gz
@@ -40,12 +40,12 @@ jobs:
   build-macos-x86_64:
     runs-on: macos-15-intel
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build
         run: ./build.sh
       - name: Package
         run: cd out/macos-x86_64 && tar czf ../../libnode-macos-x86_64.tar.gz .
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: libnode-macos-x86_64
           path: libnode-macos-x86_64.tar.gz
@@ -53,12 +53,12 @@ jobs:
   build-macos-aarch64:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build
         run: ./build.sh
       - name: Package
         run: cd out/macos-aarch64 && tar czf ../../libnode-macos-aarch64.tar.gz .
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: libnode-macos-aarch64
           path: libnode-macos-aarch64.tar.gz
@@ -66,7 +66,7 @@ jobs:
   build-windows-x86_64:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install build tools
         run: choco install python3 nasm -y
       - name: Read version
@@ -97,7 +97,7 @@ jobs:
       - name: Package
         shell: bash
         run: cd out/windows-x86_64 && 7z a ../../libnode-windows-x86_64.zip .
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: libnode-windows-x86_64
           path: libnode-windows-x86_64.zip
@@ -105,7 +105,7 @@ jobs:
   build-android-aarch64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Set up NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
@@ -117,7 +117,7 @@ jobs:
         run: ./build-android.sh --ndk ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Package
         run: cd out/android-aarch64 && tar czf ../../libnode-android-aarch64.tar.gz .
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: libnode-android-aarch64
           path: libnode-android-aarch64.tar.gz
@@ -129,11 +129,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Read version
         id: ver
         run: echo "node_version=$(cat NODE_VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           path: artifacts
