@@ -2,3 +2,4 @@ node-src/
 out/
 *.tar.gz
 *.zip
+node-src
