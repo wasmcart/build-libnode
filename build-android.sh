@@ -48,7 +48,7 @@ sed -i 's/#define V8_TRAP_HANDLER_SUPPORTED true/#define V8_TRAP_HANDLER_SUPPORT
     deps/v8/src/trap-handler/trap-handler.h
 
 # Patch 2: Add our configure flags to android-configure
-sed -i 's|--cross-compiling")|--cross-compiling --shared --without-npm --without-inspector --without-intl --without-corepack")|' \
+sed -i 's|--cross-compiling")|--cross-compiling --without-npm --without-inspector --without-intl --without-corepack")|' \
     android_configure.py
 
 # Set host compiler so V8 build tools (torque, mksnapshot) compile for the build machine
@@ -64,21 +64,16 @@ echo "Building with ${NPROC} jobs..."
 # The node binary link may fail (we don't need it) — libnode.so is the target
 make -j"$NPROC" || true
 
-# Verify libnode.so was produced
-if [ ! -f out/Release/libnode.so ]; then
-    echo "Error: libnode.so not found"
-    exit 1
-fi
-
-# Verify it's actually aarch64
-ARCH_CHECK=$(file out/Release/libnode.so)
-if ! echo "$ARCH_CHECK" | grep -q "aarch64"; then
-    echo "Error: libnode.so is not aarch64: $ARCH_CHECK"
-    exit 1
-fi
 
 echo "Collecting outputs to ${OUT_DIR}..."
-cp out/Release/libnode.so "$OUT_DIR/"
+
+# Collect all .o files and pack into a fat libnode.a
+echo "Creating fat libnode.a from object files..."
+OBJ_FILES=$(find out/Release/obj.target -name "*.o" ! -path "*gtest*")
+OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
+echo "Packing $OBJ_COUNT object files..."
+ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
+echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
 
 INCLUDE_DIR="${OUT_DIR}/include"
 mkdir -p "$INCLUDE_DIR"
@@ -96,5 +91,5 @@ git checkout -- deps/v8/src/trap-handler/trap-handler.h android_configure.py 2>/
 
 echo ""
 echo "=== Done: ${OUT_DIR} ==="
-ls -lh "$OUT_DIR"/libnode.so
-file "$OUT_DIR"/libnode.so
+ls -lh "$OUT_DIR"/libnode.a
+file "$OUT_DIR"/libnode.a

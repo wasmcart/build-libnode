@@ -71,10 +71,18 @@ make -j"$NPROC"
 # Collect outputs
 echo "Collecting outputs to ${OUT_DIR}..."
 
-# Static library
-cp out/Release/libnode.a "$OUT_DIR/" 2>/dev/null || \
-    cp out/Release/obj.target/libnode.a "$OUT_DIR/" 2>/dev/null || \
-    { echo "Error: libnode.a not found"; exit 1; }
+# Collect all .o files and pack into a fat libnode.a
+# Node's build produces thin archives on Linux (references to .o by path, useless for distribution).
+# We skip the thin .a files and pack the .o files directly.
+echo "Creating fat libnode.a from object files..."
+
+OBJ_FILES=$(find out/Release/obj.target -name "*.o" ! -path "*gtest*")
+OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
+echo "Packing $OBJ_COUNT object files..."
+
+ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
+
+echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
 
 # Headers
 INCLUDE_DIR="${OUT_DIR}/include"
