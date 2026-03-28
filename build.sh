@@ -64,7 +64,7 @@ echo "Configuring..."
 ./configure $CONFIGURE_FLAGS
 
 # Build
-NPROC=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+NPROC=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 echo "Building with ${NPROC} jobs..."
 make -j"$NPROC"
 
