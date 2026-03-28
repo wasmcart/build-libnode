@@ -82,9 +82,6 @@ echo "Packing $OBJ_COUNT object files..."
 
 ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
 
-# Strip debug symbols to reduce archive size (macOS builds include full debug info)
-strip -S "$OUT_DIR/libnode.a" 2>/dev/null || true
-
 echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
 
 # Headers
