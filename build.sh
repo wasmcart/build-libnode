@@ -74,18 +74,20 @@ echo "Collecting outputs to ${OUT_DIR}..."
 # Collect all .o files and pack into a fat libnode.a
 # Node's build produces thin archives on Linux (references to .o by path, useless for distribution).
 # We skip the thin .a files and pack the .o files directly.
-echo "Creating fat libnode.a from object files..."
-
-OBJ_FILES=$(find out/Release/obj.target -name "*.o" ! -path "*gtest*")
-OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
-echo "Packing $OBJ_COUNT object files..."
-
-# Free disk space before archiving (macOS runners have limited disk)
-rm -rf out/Release/obj.host 2>/dev/null
-rm -rf deps/v8/test deps/v8/tools deps/v8/benchmarks 2>/dev/null
-rm -rf test/ benchmark/ doc/ 2>/dev/null
-
-ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
+# On macOS, ar produces fat archives natively — just combine the existing .a files
+# On Linux, ar produces thin archives — we must repack from .o files
+if [ "$PLATFORM" = "macos" ]; then
+    echo "Combining macOS fat archives..."
+    libtool -static -o "$OUT_DIR/libnode.a" $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*")
+    echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
+else
+    echo "Creating fat libnode.a from object files..."
+    OBJ_FILES=$(find out/Release/obj.target -name "*.o" ! -path "*gtest*")
+    OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
+    echo "Packing $OBJ_COUNT object files..."
+    ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
+    echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
+fi
 
 echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
 
