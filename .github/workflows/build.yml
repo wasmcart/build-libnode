@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Build
-        run: JOBS=2 ./build.sh
+        run: JOBS=1 ./build.sh
       - name: Package
         run: cd out/macos-aarch64 && tar czf ../../libnode-macos-aarch64.tar.gz .
       - uses: actions/upload-artifact@v7
