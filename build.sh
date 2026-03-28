@@ -80,6 +80,11 @@ OBJ_FILES=$(find out/Release/obj.target -name "*.o" ! -path "*gtest*")
 OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
 echo "Packing $OBJ_COUNT object files..."
 
+# Free disk space before archiving (macOS runners have limited disk)
+rm -rf out/Release/obj.host 2>/dev/null
+rm -rf deps/v8/test deps/v8/tools deps/v8/benchmarks 2>/dev/null
+rm -rf test/ benchmark/ doc/ 2>/dev/null
+
 ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
 
 echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
