@@ -77,6 +77,10 @@ echo "Collecting outputs to ${OUT_DIR}..."
 # On macOS, ar produces fat archives natively — just combine the existing .a files
 # On Linux, ar produces thin archives — we must repack from .o files
 if [ "$PLATFORM" = "macos" ]; then
+    echo "Stripping debug symbols from archives..."
+    for a in $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*"); do
+        strip -S "$a" 2>/dev/null || true
+    done
     echo "Combining macOS fat archives..."
     libtool -static -o "$OUT_DIR/libnode.a" $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*")
     echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
