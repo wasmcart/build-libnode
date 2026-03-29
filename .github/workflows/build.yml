@@ -89,7 +89,7 @@ jobs:
           cp node-src/out/Release/lib/libnode.lib out/windows-x86_64/libnode.lib 2>/dev/null || \
             cp node-src/out/Release/libnode.lib out/windows-x86_64/libnode.lib 2>/dev/null || \
             cp node-src/out/Release/node.lib out/windows-x86_64/libnode.lib 2>/dev/null || true
-          cp -r node-src/src/node.h node-src/src/node_api.h node-src/src/node_api_types.h \
+          cp -r node-src/src/node.h node-src/src/node_version.h node-src/src/node_api.h node-src/src/node_api_types.h \
                 node-src/src/node_buffer.h node-src/src/js_native_api.h node-src/src/js_native_api_types.h \
                 out/windows-x86_64/include/ 2>/dev/null || true
           cp -r node-src/deps/v8/include/* out/windows-x86_64/include/ 2>/dev/null || true
