@@ -8,8 +8,8 @@ set -e
 #   ./build.sh --node-version 24.14.1       # specific version
 #
 # Output: out/<platform>-<arch>/
-#   libnode.a
-#   include/  (node + v8 + uv headers)
+#   libnode.a       — all deps merged, PIC-compatible (works in static binaries AND shared libs)
+#   include/        — node + v8 + uv headers
 #   NODE_VERSION
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -36,7 +36,7 @@ case "$OS" in
 esac
 
 TARGET="${PLATFORM}-${ARCH}"
-echo "=== Building libnode v${NODE_VERSION} for ${TARGET} (static) ==="
+echo "=== Building libnode v${NODE_VERSION} for ${TARGET} (static, PIC) ==="
 
 SRC_DIR="${SCRIPT_DIR}/node-src"
 OUT_DIR="${SCRIPT_DIR}/out/${TARGET}"
@@ -57,11 +57,18 @@ fi
 
 cd "$SRC_DIR"
 
-# Configure for static build
-# -fPIC is required so the .a can be linked into shared libraries (libretro cores)
+# Patch V8 TLS model: "local-exec" can't be linked into shared libraries (.so).
+# Change to "global-dynamic" which works in both static binaries and shared libs.
+TLS_HEADER="deps/v8/src/common/thread-local-storage.h"
+if grep -q '"local-exec"' "$TLS_HEADER" 2>/dev/null; then
+    echo "Patching V8 TLS model: local-exec → global-dynamic"
+    sed -i 's/"local-exec"/"global-dynamic"/' "$TLS_HEADER"
+fi
+
+# Configure for static build with PIC (needed for libretro .so cores)
 CONFIGURE_FLAGS="--fully-static --without-npm --without-inspector --without-intl --without-corepack"
-export CFLAGS="${CFLAGS:-} -fPIC -ftls-model=global-dynamic"
-export CXXFLAGS="${CXXFLAGS:-} -fPIC -ftls-model=global-dynamic"
+export CFLAGS="${CFLAGS:-} -fPIC"
+export CXXFLAGS="${CXXFLAGS:-} -fPIC"
 
 echo "Configuring..."
 ./configure $CONFIGURE_FLAGS
@@ -74,22 +81,15 @@ make -j"$NPROC"
 # Collect outputs
 echo "Collecting outputs to ${OUT_DIR}..."
 
-# Collect all .o files and pack into a fat libnode.a
-# Node's build produces thin archives on Linux (references to .o by path, useless for distribution).
-# We skip the thin .a files and pack the .o files directly.
-# On macOS, ar produces fat archives natively — just combine the existing .a files
-# On Linux, ar produces thin archives — we must repack from .o files
+# Repack all .o files into a fat libnode.a
+# Linux ar produces thin archives (useless for distribution) so we repack from .o
+# macOS libtool can merge .a files directly
+# Filter out test/tool executables
 if [ "$PLATFORM" = "macos" ]; then
-    echo "Stripping debug symbols from archives..."
+    echo "Stripping debug symbols..."
     for a in $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*"); do
         strip -S "$a" 2>/dev/null || true
     done
-    echo "Combining macOS fat archives + snapshot stub..."
-    # Strip .a files
-    for a in $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*"); do
-        strip -S "$a" 2>/dev/null || true
-    done
-    # Include node_snapshot_stub.o for embedders (provides null snapshot — required symbol)
     SNAPSHOT_STUB=$(find out/Release/obj.target -name "node_snapshot_stub.o" -path "*/embedtest/*" | head -1)
     if [ -n "$SNAPSHOT_STUB" ]; then
         strip -S "$SNAPSHOT_STUB" 2>/dev/null || true
@@ -98,17 +98,17 @@ if [ "$PLATFORM" = "macos" ]; then
     libtool -static -o "$OUT_DIR/libnode.a" \
         $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*") \
         $SNAPSHOT_STUB
-    echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
 else
     echo "Creating fat libnode.a from object files..."
-    OBJ_FILES=$(find out/Release/obj.target -name "*.o" ! -path "*gtest*")
+    OBJ_FILES=$(find out/Release/obj.target -name "*.o" \
+        ! -path "*gtest*" ! -path "*cctest*" ! -path "*embedtest*" \
+        ! -name "main_unix.o" ! -name "node_main.o")
     OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
     echo "Packing $OBJ_COUNT object files..."
     ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
-    echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
 fi
 
-echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
+echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
 
 # Headers
 INCLUDE_DIR="${OUT_DIR}/include"
