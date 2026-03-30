@@ -82,21 +82,23 @@ jobs:
         run: |
           cd node-src
           call vcbuild.bat release ltcg static no-cctest without-intl nonpm nocorepack
-      - name: Collect outputs
+      - name: Merge libs
+        shell: cmd
+        run: |
+          mkdir out\windows-x86_64
+          cd node-src\out\Release
+          lib.exe /OUT:..\..\..\out\windows-x86_64\libnode.lib *.lib
+      - name: Collect headers
         shell: bash
         run: |
           mkdir -p out/windows-x86_64/include
-          # Merge all .lib files into one (libnode.lib alone is missing V8 and deps)
-          ALL_LIBS=$(find node-src/out/Release -name "*.lib" ! -name "*gtest*" ! -name "*cctest*" | tr '\n' ' ')
-          echo "Merging libs: $ALL_LIBS"
-          lib.exe /OUT:out/windows-x86_64/libnode.lib $ALL_LIBS || \
-            cp node-src/out/Release/libnode.lib out/windows-x86_64/libnode.lib 2>/dev/null || true
           cp -r node-src/src/node.h node-src/src/node_version.h node-src/src/node_api.h node-src/src/node_api_types.h \
                 node-src/src/node_buffer.h node-src/src/js_native_api.h node-src/src/js_native_api_types.h \
                 out/windows-x86_64/include/ 2>/dev/null || true
           cp -r node-src/deps/v8/include/* out/windows-x86_64/include/ 2>/dev/null || true
           cp -r node-src/deps/uv/include/* out/windows-x86_64/include/ 2>/dev/null || true
           cat NODE_VERSION > out/windows-x86_64/NODE_VERSION
+          ls -lh out/windows-x86_64/libnode.lib
       - name: Package
         shell: bash
         run: cd out/windows-x86_64 && 7z a ../../libnode-windows-x86_64.zip .
