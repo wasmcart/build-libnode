@@ -87,8 +87,9 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           mkdir out\windows-x86_64
-          cd node-src\out\Release
-          lib.exe /OUT:..\..\..\out\windows-x86_64\libnode.lib *.lib
+          dir /s /b node-src\out\Release\*.lib | findstr /v /i "cctest gtest node_mksnapshot bytecode_builtins_list_generator" > liblist.txt
+          type liblist.txt
+          lib.exe /OUT:out\windows-x86_64\libnode.lib @liblist.txt
       - name: Collect headers
         shell: bash
         run: |
