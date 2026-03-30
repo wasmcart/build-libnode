@@ -86,9 +86,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p out/windows-x86_64/include
-          cp node-src/out/Release/lib/libnode.lib out/windows-x86_64/libnode.lib 2>/dev/null || \
-            cp node-src/out/Release/libnode.lib out/windows-x86_64/libnode.lib 2>/dev/null || \
-            cp node-src/out/Release/node.lib out/windows-x86_64/libnode.lib 2>/dev/null || true
+          # Merge all .lib files into one (libnode.lib alone is missing V8 and deps)
+          ALL_LIBS=$(find node-src/out/Release -name "*.lib" ! -name "*gtest*" ! -name "*cctest*" | tr '\n' ' ')
+          echo "Merging libs: $ALL_LIBS"
+          lib.exe /OUT:out/windows-x86_64/libnode.lib $ALL_LIBS || \
+            cp node-src/out/Release/libnode.lib out/windows-x86_64/libnode.lib 2>/dev/null || true
           cp -r node-src/src/node.h node-src/src/node_version.h node-src/src/node_api.h node-src/src/node_api_types.h \
                 node-src/src/node_buffer.h node-src/src/js_native_api.h node-src/src/js_native_api_types.h \
                 out/windows-x86_64/include/ 2>/dev/null || true
