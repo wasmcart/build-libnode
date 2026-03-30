@@ -54,6 +54,9 @@ sed -i 's|--cross-compiling")|--cross-compiling --without-npm --without-inspecto
 # Set host compiler so V8 build tools (torque, mksnapshot) compile for the build machine
 export CC_host=gcc
 export CXX_host=g++
+# -fPIC for shared library compatibility (libretro cores are .so)
+export CFLAGS="${CFLAGS:-} -fPIC"
+export CXXFLAGS="${CXXFLAGS:-} -fPIC"
 
 echo "Configuring for Android aarch64..."
 # API level 33+ required — Bionic libc needs API 33 for backtrace functions used by V8
