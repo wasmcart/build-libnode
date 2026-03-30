@@ -81,12 +81,19 @@ if [ "$PLATFORM" = "macos" ]; then
     for a in $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*"); do
         strip -S "$a" 2>/dev/null || true
     done
-    echo "Combining macOS fat archives..."
-    # Include .a files AND loose .o files (like node_snapshot.o)
+    echo "Combining macOS fat archives + snapshot objects..."
+    # Strip .a files first
+    for a in $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*"); do
+        strip -S "$a" 2>/dev/null || true
+    done
+    # Find loose .o files not in any .a (like node_snapshot.o) and strip them
+    LOOSE_O=$(find out/Release -maxdepth 1 -name "*.o" 2>/dev/null)
+    for o in $LOOSE_O; do
+        strip -S "$o" 2>/dev/null || true
+    done
     libtool -static -o "$OUT_DIR/libnode.a" \
         $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*") \
-        $(find out/Release/obj.target -name "*.o" ! -path "*gtest*" 2>/dev/null) \
-        $(find out/Release -maxdepth 1 -name "*.o" 2>/dev/null)
+        $LOOSE_O
     echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
 else
     echo "Creating fat libnode.a from object files..."
