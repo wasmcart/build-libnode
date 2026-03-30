@@ -60,8 +60,8 @@ cd "$SRC_DIR"
 # Configure for static build
 # -fPIC is required so the .a can be linked into shared libraries (libretro cores)
 CONFIGURE_FLAGS="--fully-static --without-npm --without-inspector --without-intl --without-corepack"
-export CFLAGS="${CFLAGS:-} -fPIC"
-export CXXFLAGS="${CXXFLAGS:-} -fPIC"
+export CFLAGS="${CFLAGS:-} -fPIC -ftls-model=global-dynamic"
+export CXXFLAGS="${CXXFLAGS:-} -fPIC -ftls-model=global-dynamic"
 
 echo "Configuring..."
 ./configure $CONFIGURE_FLAGS

@@ -55,8 +55,8 @@ sed -i 's|--cross-compiling")|--cross-compiling --without-npm --without-inspecto
 export CC_host=gcc
 export CXX_host=g++
 # -fPIC for shared library compatibility (libretro cores are .so)
-export CFLAGS="${CFLAGS:-} -fPIC"
-export CXXFLAGS="${CXXFLAGS:-} -fPIC"
+export CFLAGS="${CFLAGS:-} -fPIC -ftls-model=global-dynamic"
+export CXXFLAGS="${CXXFLAGS:-} -fPIC -ftls-model=global-dynamic"
 
 echo "Configuring for Android aarch64..."
 # API level 33+ required — Bionic libc needs API 33 for backtrace functions used by V8
