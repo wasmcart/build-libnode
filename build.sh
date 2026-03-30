@@ -81,19 +81,20 @@ if [ "$PLATFORM" = "macos" ]; then
     for a in $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*"); do
         strip -S "$a" 2>/dev/null || true
     done
-    echo "Combining macOS fat archives + snapshot objects..."
-    # Strip .a files first
+    echo "Combining macOS fat archives + snapshot stub..."
+    # Strip .a files
     for a in $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*"); do
         strip -S "$a" 2>/dev/null || true
     done
-    # Find loose .o files not in any .a (like node_snapshot.o) and strip them
-    LOOSE_O=$(find out/Release -maxdepth 1 -name "*.o" 2>/dev/null)
-    for o in $LOOSE_O; do
-        strip -S "$o" 2>/dev/null || true
-    done
+    # Include node_snapshot_stub.o for embedders (provides null snapshot — required symbol)
+    SNAPSHOT_STUB=$(find out/Release/obj.target -name "node_snapshot_stub.o" -path "*/embedtest/*" | head -1)
+    if [ -n "$SNAPSHOT_STUB" ]; then
+        strip -S "$SNAPSHOT_STUB" 2>/dev/null || true
+        echo "Including snapshot stub: $SNAPSHOT_STUB"
+    fi
     libtool -static -o "$OUT_DIR/libnode.a" \
         $(find out/Release -maxdepth 1 -name "*.a" ! -name "*gtest*") \
-        $LOOSE_O
+        $SNAPSHOT_STUB
     echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
 else
     echo "Creating fat libnode.a from object files..."
