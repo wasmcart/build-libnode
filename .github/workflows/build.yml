@@ -85,6 +85,7 @@ jobs:
       - name: Merge libs
         shell: cmd
         run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           mkdir out\windows-x86_64
           cd node-src\out\Release
           lib.exe /OUT:..\..\..\out\windows-x86_64\libnode.lib *.lib
