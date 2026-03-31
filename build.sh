@@ -102,6 +102,8 @@ else
     echo "Creating fat libnode.a from object files..."
     OBJ_FILES=$(find out/Release/obj.target -name "*.o" \
         ! -path "*gtest*" ! -path "*cctest*" ! -path "*embedtest*" \
+        ! -path "*/mksnapshot/*" ! -path "*/torque/*" ! -path "*/node_js2c/*" \
+        ! -path "*/v8_init/*" ! -path "*/v8_initializers/*" ! -path "*/v8_initializers_slow/*" \
         ! -name "main_unix.o" ! -name "node_main.o")
     OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
     echo "Packing $OBJ_COUNT object files..."
