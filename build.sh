@@ -62,7 +62,11 @@ cd "$SRC_DIR"
 TLS_HEADER="deps/v8/src/common/thread-local-storage.h"
 if grep -q '"local-exec"' "$TLS_HEADER" 2>/dev/null; then
     echo "Patching V8 TLS model: local-exec → global-dynamic"
-    sed -i 's/"local-exec"/"global-dynamic"/' "$TLS_HEADER"
+    if [ "$PLATFORM" = "macos" ]; then
+        sed -i '' 's/"local-exec"/"global-dynamic"/' "$TLS_HEADER"
+    else
+        sed -i 's/"local-exec"/"global-dynamic"/' "$TLS_HEADER"
+    fi
 fi
 
 # Configure for static build with PIC (needed for libretro .so cores)
