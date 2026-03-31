@@ -47,7 +47,14 @@ rm -rf out/
 sed -i 's/#define V8_TRAP_HANDLER_SUPPORTED true/#define V8_TRAP_HANDLER_SUPPORTED false/' \
     deps/v8/src/trap-handler/trap-handler.h
 
-# Patch 2: Add our configure flags to android-configure
+# Patch 2: V8 TLS model — local-exec can't link into shared libraries (.so)
+TLS_HEADER="deps/v8/src/common/thread-local-storage.h"
+if grep -q '"local-exec"' "$TLS_HEADER" 2>/dev/null; then
+    echo "Patching V8 TLS model: local-exec → global-dynamic"
+    sed -i 's/"local-exec"/"global-dynamic"/' "$TLS_HEADER"
+fi
+
+# Patch 3: Add our configure flags to android-configure
 sed -i 's|--cross-compiling")|--cross-compiling --without-npm --without-inspector --without-intl --without-corepack")|' \
     android_configure.py
 
