@@ -118,7 +118,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r27c
+          ndk-version: r28b   # r27c ships clang 18; Node 26 requires clang >= 19.1
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y python3 g++ make
       - name: Build

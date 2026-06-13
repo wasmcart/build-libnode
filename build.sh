@@ -118,6 +118,15 @@ fi
 
 echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
 
+# Plausibility gate: a real libnode.a is ~100-160MB. If the archive is tiny the
+# build silently produced a stub (bad toolchain, empty object set) — fail HARD so
+# CI can never publish a broken libnode that links but does nothing.
+A_BYTES=$(stat -c%s "$OUT_DIR/libnode.a" 2>/dev/null || stat -f%z "$OUT_DIR/libnode.a")
+if [ "$A_BYTES" -lt 50000000 ]; then
+    echo "FATAL: libnode.a is ${A_BYTES} bytes (expected >50MB) — not a real build." >&2
+    exit 1
+fi
+
 # Headers
 INCLUDE_DIR="${OUT_DIR}/include"
 mkdir -p "$INCLUDE_DIR"

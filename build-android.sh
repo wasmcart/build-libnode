@@ -80,10 +80,29 @@ echo "Collecting outputs to ${OUT_DIR}..."
 # Collect all .o files and pack into a fat libnode.a
 echo "Creating fat libnode.a from object files..."
 OBJ_FILES=$(find out/Release/obj.target -name "*.o" ! -path "*gtest*")
-OBJ_COUNT=$(echo "$OBJ_FILES" | wc -l)
+OBJ_COUNT=$(printf '%s\n' "$OBJ_FILES" | grep -c '\.o$' || true)
 echo "Packing $OBJ_COUNT object files..."
+
+# Sanity gate: `make ... || true` above tolerates the expected node-binary link
+# failure, but it ALSO masks a total compile failure (e.g. NDK clang too old for
+# this Node version). A real V8 build emits thousands of objects; if we have only
+# a handful, the build silently produced a stub — fail HARD rather than ship a
+# broken ~4MB "libnode" that passes CI and poisons the release.
+if [ "$OBJ_COUNT" -lt 1000 ]; then
+    echo "FATAL: only $OBJ_COUNT object files (expected >1000) — V8 did not compile." >&2
+    echo "       Check the configure-phase compiler-version warning above." >&2
+    exit 1
+fi
+
 ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
-echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects)"
+
+# Plausibility gate on the archive itself (real libnode.a is ~100-160MB).
+A_BYTES=$(stat -c%s "$OUT_DIR/libnode.a" 2>/dev/null || stat -f%z "$OUT_DIR/libnode.a")
+if [ "$A_BYTES" -lt 50000000 ]; then
+    echo "FATAL: libnode.a is ${A_BYTES} bytes (expected >50MB) — not a real build." >&2
+    exit 1
+fi
+echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects, ${A_BYTES} bytes)"
 
 INCLUDE_DIR="${OUT_DIR}/include"
 mkdir -p "$INCLUDE_DIR"
