@@ -55,7 +55,7 @@ if grep -q '"local-exec"' "$TLS_HEADER" 2>/dev/null; then
 fi
 
 # Patch 3: Add our configure flags to android-configure
-sed -i 's|--cross-compiling")|--cross-compiling --without-npm --without-inspector --without-intl --without-corepack")|' \
+sed -i 's|--cross-compiling")|--cross-compiling --without-npm --without-inspector --without-intl")|' \
     android_configure.py
 
 # Set host compiler so V8 build tools (torque, mksnapshot) compile for the build machine

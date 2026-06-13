@@ -81,7 +81,7 @@ jobs:
         shell: cmd
         run: |
           cd node-src
-          call vcbuild.bat release ltcg static no-cctest without-intl nonpm nocorepack
+          call vcbuild.bat release ltcg static no-cctest without-intl nonpm
       - name: Merge libs
         shell: cmd
         run: |
@@ -153,7 +153,7 @@ jobs:
             Pre-built libnode static libraries for wasmcart.
 
             Built from Node.js v${{ steps.ver.outputs.node_version }} with:
-            `--fully-static --without-npm --without-inspector --without-intl --without-corepack`
+            `--fully-static --without-npm --without-inspector --without-intl`
 
             Each archive contains `libnode.a` (or `.lib`), headers (Node.js + V8 + libuv), and a NODE_VERSION file.
             Link statically into your binary — no runtime .so/.dll dependency.
