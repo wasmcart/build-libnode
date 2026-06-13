@@ -118,7 +118,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r28b   # r27c ships clang 18; Node 26 requires clang >= 19.1
+          ndk-version: r29   # Node 26's V8 needs std::atomic_ref (libc++ 19.1+); r28b ships 19.0, r29 ships a newer clang/libc++
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y python3 g++ make
       - name: Build

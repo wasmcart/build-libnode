@@ -1,10 +1,15 @@
 # build-libnode
 
-Pre-built libnode shared libraries for [wasmcart](https://github.com/wasmcart). Used by [wasmcart-native](https://github.com/wasmcart/wasmcart-native) and [wasmcart-libretro](https://github.com/wasmcart/wasmcart-libretro) to embed V8 as a WASM runtime.
+Pre-built libnode (V8 + libuv + Node embedding API) static libraries, built once per Node.js version and per platform so downstream projects link in seconds instead of compiling V8 from source.
+
+Used by:
+
+- [wasmcart](https://github.com/wasmcart) — [wasmcart-native](https://github.com/wasmcart/wasmcart-native) and [wasmcart-libretro](https://github.com/wasmcart/wasmcart-libretro) embed V8 as a **WASM** runtime.
+- [jsgame-libretro](https://github.com/monteslu/jsgame-libretro) — a libretro core that embeds libnode to run **JavaScript** web games (Canvas 2D / WebGL2 / WebAudio) directly in V8.
 
 ## Why
 
-wasmcart uses V8 (via libnode) as its WASM runtime. V8's Liftoff baseline compiler starts WASM execution immediately — a 52MB Godot game engine loads in 356ms, compared to 29 seconds with wasmtime's full ahead-of-time compilation.
+These projects use V8 (via libnode) as their runtime. V8's Liftoff baseline compiler starts execution immediately — a 52MB Godot WASM game engine loads in 356ms, compared to 29 seconds with wasmtime's full ahead-of-time compilation.
 
 Building libnode from source takes 20-30 minutes per platform. This repo does that once per Node.js version and publishes pre-built binaries so downstream projects build in seconds.
 
@@ -39,7 +44,7 @@ Download the archive for your target platform and point your build at it:
 ```bash
 # Download
 mkdir -p deps/libnode
-curl -sL https://github.com/wasmcart/build-libnode/releases/download/v24.14.1/libnode-linux-x86_64.tar.gz \
+curl -sL https://github.com/wasmcart/build-libnode/releases/download/v26.3.0/libnode-linux-x86_64.tar.gz \
   | tar xz -C deps/libnode
 
 # Build (cmake)
