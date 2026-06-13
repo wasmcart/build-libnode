@@ -87,10 +87,17 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           mkdir out\windows-x86_64
-          dir /b node-src\out\Release\lib\*.lib > liblist.txt
-          type liblist.txt
           cd node-src\out\Release\lib
-          lib.exe /OUT:..\..\..\..\out\windows-x86_64\libnode.lib *.lib
+          rem Node 26 emits its own libnode.lib here alongside the component libs.
+          rem Globbing *.lib feeds that file to lib.exe as BOTH an input and the
+          rem output target -> LNK1107 "invalid or corrupt file". Build an explicit
+          rem input list of the component libs, EXCLUDING libnode.lib, and merge
+          rem into a fresh name, then move it to the artifact dir.
+          (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
+          type liblist.txt
+          lib.exe /OUT:libnode_merged.lib @liblist.txt
+          if errorlevel 1 exit /b 1
+          move /y libnode_merged.lib ..\..\..\..\out\windows-x86_64\libnode.lib
       - name: Collect headers
         shell: bash
         run: |
@@ -102,6 +109,13 @@ jobs:
           cp -r node-src/deps/uv/include/* out/windows-x86_64/include/ 2>/dev/null || true
           cat NODE_VERSION > out/windows-x86_64/NODE_VERSION
           ls -lh out/windows-x86_64/libnode.lib
+          # Plausibility gate (matches build.sh / build-android.sh): a real merged
+          # libnode.lib is ~100MB+. Fail hard rather than publish a stub.
+          SZ=$(stat -c%s out/windows-x86_64/libnode.lib 2>/dev/null || stat -f%z out/windows-x86_64/libnode.lib)
+          if [ "$SZ" -lt 50000000 ]; then
+            echo "FATAL: libnode.lib is ${SZ} bytes (expected >50MB) — merge produced a stub." >&2
+            exit 1
+          fi
       - name: Package
         shell: bash
         run: cd out/windows-x86_64 && 7z a ../../libnode-windows-x86_64.zip .
