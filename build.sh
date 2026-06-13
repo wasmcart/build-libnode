@@ -69,8 +69,10 @@ if grep -q '"local-exec"' "$TLS_HEADER" 2>/dev/null; then
     fi
 fi
 
-# Configure for static build with PIC (needed for libretro .so cores)
-CONFIGURE_FLAGS="--fully-static --without-npm --without-inspector --without-intl --without-corepack"
+# Configure for static build with PIC (needed for libretro .so cores).
+# (--without-corepack was removed in Node 26 — corepack is no longer bundled,
+# so the flag no longer exists; --without-npm already drops the package manager.)
+CONFIGURE_FLAGS="--fully-static --without-npm --without-inspector --without-intl"
 export CFLAGS="${CFLAGS:-} -fPIC"
 export CXXFLAGS="${CXXFLAGS:-} -fPIC"
 
