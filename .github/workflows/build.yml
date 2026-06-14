@@ -85,7 +85,15 @@ jobs:
       - name: Merge libs
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+          rem Locate vcvarsall.bat via vswhere instead of hardcoding the VS
+          rem year/edition — the GitHub windows runner image moves between VS
+          rem versions (e.g. 2022 -> 2026/v18), and a missing hardcoded path
+          rem silently no-ops the `call`, leaving lib.exe off PATH ("'lib.exe'
+          rem is not recognized"). vswhere lives at a fixed location.
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set "VSPATH=%%i"
+          if not defined VSPATH echo FATAL: VS install not found via vswhere & exit /b 1
+          call "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
+          where lib.exe >nul 2>&1 || (echo FATAL: lib.exe not on PATH after vcvars & exit /b 1)
           mkdir out\windows-x86_64
           cd node-src\out\Release\lib
           rem Node 26 emits its own libnode.lib here alongside the component libs.
