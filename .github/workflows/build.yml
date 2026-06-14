@@ -90,10 +90,18 @@ jobs:
           cd node-src\out\Release\lib
           rem Node 26 emits its own libnode.lib here alongside the component libs.
           rem Globbing *.lib feeds that file to lib.exe as BOTH an input and the
-          rem output target -> LNK1107 "invalid or corrupt file". Build an explicit
-          rem input list of the component libs, EXCLUDING libnode.lib, and merge
-          rem into a fresh name, then move it to the artifact dir.
-          (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
+          rem output target -> LNK1107. Also exclude libs that must NOT ship in a
+          rem distributed embedding archive. These mirror build.sh's proven
+          rem linux/macos OBJ_FILES exclusions (see commit a8beef8):
+          rem   libnode.lib              - the output target itself (LNK1107)
+          rem   gtest, gtest_main        - GoogleTest, test-only
+          rem   v8_init, v8_initializers - the WRONG SetupIsolate (test builtins);
+          rem                              keep v8_snapshot (the real init path).
+          rem                              Including both -> LNK4006 dup-defs.
+          rem   torque_base              - the torque build tool, not runtime
+          rem   liblief                  - postject's binary parser, not needed
+          rem Without these, the merge ballooned to 771MB of duplicate members.
+          (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /r /c:"libnode.lib" /c:"gtest" /c:"v8_init" /c:"torque" /c:"liblief"') do @echo %%f) > liblist.txt
           type liblist.txt
           lib.exe /OUT:libnode_merged.lib @liblist.txt
           if errorlevel 1 exit /b 1
@@ -110,10 +118,16 @@ jobs:
           cat NODE_VERSION > out/windows-x86_64/NODE_VERSION
           ls -lh out/windows-x86_64/libnode.lib
           # Plausibility gate (matches build.sh / build-android.sh): a real merged
-          # libnode.lib is ~100MB+. Fail hard rather than publish a stub.
+          # libnode.lib is ~100-400MB. Fail hard on BOTH a stub (too small) AND a
+          # bloated merge (too big — e.g. test/duplicate libs dragged in, which
+          # produced a 771MB archive of duplicate members before this was caught).
           SZ=$(stat -c%s out/windows-x86_64/libnode.lib 2>/dev/null || stat -f%z out/windows-x86_64/libnode.lib)
           if [ "$SZ" -lt 50000000 ]; then
             echo "FATAL: libnode.lib is ${SZ} bytes (expected >50MB) — merge produced a stub." >&2
+            exit 1
+          fi
+          if [ "$SZ" -gt 500000000 ]; then
+            echo "FATAL: libnode.lib is ${SZ} bytes (expected <500MB) — merge pulled in test/duplicate libs." >&2
             exit 1
           fi
       - name: Package
