@@ -110,19 +110,24 @@ jobs:
           rem libnode.lib (to dodge LNK1107 from feeding it as both in+out) -> all
           rem of N-API was dropped -> downstream LNK2001 napi_* / __imp_log1pf.
           rem
-          rem lib.exe CANNOT merge another static .lib as an input member (LNK1107
-          rem "invalid or corrupt file"). It CAN merge .obj files. So EXTRACT the
-          rem N-API object members out of libnode.lib and add those objects to the
-          rem merge of the component libs.
-          mkdir napiobj
-          for %%M in (js_native_api_v8 node_api napi) do (
-            for /f "delims=" %%E in ('lib /nologo /list libnode.lib ^| findstr /i /c:"%%M"') do (
-              lib /nologo /extract:"%%E" /out:napiobj\%%~nxE libnode.lib
-            )
-          )
-          dir /b napiobj
+          rem lib.exe can't merge a static .lib as a member (LNK1107), and
+          rem EXTRACTING members from this LTCG archive yields thin LTCG bitcode,
+          rem not real COFF (LNK1136). So use the REAL on-disk object files that
+          rem vcbuild wrote under out\Release\obj before archiving — those are the
+          rem genuine js_native_api_v8.obj / node_api.obj. Find them on disk and
+          rem add them (as objects) to the component-lib merge, like v24 did.
           (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
-          (for /f "delims=" %%o in ('dir /b napiobj\*.obj') do @echo napiobj\%%o) >> liblist.txt
+          rem Append the REAL on-disk napi objects. cwd is node-src\out\Release\lib;
+          rem search the WHOLE out tree (..\.. = out\Release) so we don't depend on
+          rem the exact obj subdir layout. dir /s prints full paths.
+          del napilist.txt 2>nul
+          for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj ..\..\Release\obj\node_api.obj 2^>nul') do (
+            echo found napi obj: %%o
+            echo %%o>> liblist.txt
+            echo %%o>> napilist.txt
+          )
+          rem Fail loud if the on-disk napi objects were not found at all.
+          if not exist napilist.txt (echo FATAL: no on-disk js_native_api_v8.obj/node_api.obj under out\Release\obj — dumping tree for diagnosis & dir /b /s ..\..\Release\obj\*napi*.obj ..\..\Release\obj\*node_api*.obj & exit /b 1)
           type liblist.txt
           lib.exe /OUT:libnode_merged.lib @liblist.txt
           if errorlevel 1 exit /b 1
