@@ -102,14 +102,27 @@ jobs:
           rem multi-GB uncompressed (all of V8 + OpenSSL + Node, no member dedup);
           rem the downstream linker drops unused members. Do NOT try to slim it.
           rem
-          rem The ONLY exclusion vs v24: Node 26 now emits its own libnode.lib into
-          rem this dir, and globbing *.lib would feed it to lib.exe as both input
-          rem AND the output target -> LNK1107. So exclude just libnode.lib; merge
-          rem to a temp name, then move into place.
+          rem Node 26 emits its OWN libnode.lib into this dir, and it is NOT just a
+          rem duplicate of the component libs — it holds the N-API objects
+          rem (js_native_api_v8.obj / node_api.obj) and the CRT math import
+          rem (log1pf) that no other component .lib provides. v24 had these in an
+          rem obj/libnode group that got merged; v26 only ships them inside this
+          rem libnode.lib. Globbing *.lib straight would feed it to lib.exe as both
+          rem input AND output target -> LNK1107. So RENAME it into the merge (not
+          rem exclude it): copy to nodeapi_src.lib, merge everything incl. that,
+          rem output to a temp name. Excluding it (the old recipe) dropped all of
+          rem N-API -> downstream LNK2001 napi_* / __imp_log1pf on the consumer.
+          copy /y libnode.lib nodeapi_src.lib
           (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
           type liblist.txt
           lib.exe /OUT:libnode_merged.lib @liblist.txt
           if errorlevel 1 exit /b 1
+          rem Guard against the N-API-dropped regression ever shipping green again:
+          rem the merged lib MUST define napi_create_function. dumpbin /symbols is
+          rem huge, so grep for the export. Fail hard if it is absent.
+          dumpbin /symbols libnode_merged.lib | findstr /c:"napi_create_function" >nul
+          if errorlevel 1 (echo FATAL: merged libnode.lib has NO napi_create_function — N-API objects missing & exit /b 1)
+          echo OK: N-API present in merged libnode.lib
           move /y libnode_merged.lib ..\..\..\..\out\windows-x86_64\libnode.lib
       - name: Collect headers
         shell: bash
