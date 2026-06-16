@@ -110,19 +110,24 @@ jobs:
           dumpbin /symbols libnode.lib 2>nul | findstr /c:"napi_create_function" && echo LIBNODE_HAS_NAPI || echo libnode.lib has NO napi
           echo ===== headers of the on-disk napi obj (COFF vs anon/LTCG?) =====
           for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj 2^>nul') do dumpbin /headers "%%o" | findstr /i /c:"machine" /c:"anonymous" /c:"LTCG" /c:"FILE HEADER"
-          rem ── MERGE. Diagnostics proved: (a) the self-emitted libnode.lib does
-          rem NOT contain napi AND is unreadable by lib.exe (LNK1107) — so EXCLUDE
-          rem it; (b) the napi objects live on disk at out\Release\obj\libnode\src\
-          rem as LTCG-thin objects. lib.exe reads LTCG objects ONLY with /LTCG.
-          rem So: merge the component *.lib (minus libnode.lib) PLUS the on-disk
-          rem napi objects, all under /LTCG. Output to %TEMP% (avoid glob collision).
+          rem ── MERGE. Diagnostics proved Node 26's Windows build uses CLANG-CL
+          rem (--clang-cl=20.1.8) with LTCG, so the .obj/.lib members are LLVM
+          rem BITCODE, which MSVC lib.exe cannot read (LNK1136/LNK1107) even with
+          rem /LTCG (that flag is for MSVC LTCG, not LLVM bitcode). The matching
+          rem archiver is LLVM's llvm-lib, which ships with the clang-cl toolset.
+          rem So: archive with llvm-lib. Exclude the unreadable self-emitted
+          rem libnode.lib (it has no napi anyway); add the on-disk napi objects.
+          rem Locate llvm-lib from the LLVM install (clang-cl is on PATH).
+          for /f "delims=" %%c in ('where clang-cl') do set "LLVMBIN=%%~dpc"
+          echo LLVM bin: %LLVMBIN%
+          if not exist "%LLVMBIN%llvm-lib.exe" (echo FATAL: llvm-lib.exe not found next to clang-cl & where clang-cl & exit /b 1)
           (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
           for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj ..\..\Release\obj\node_api.obj 2^>nul') do @echo %%o>> liblist.txt
           echo ===== merge inputs ===== & type liblist.txt
-          lib.exe /LTCG /OUT:%TEMP%\libnode_merged.lib @liblist.txt
+          "%LLVMBIN%llvm-lib.exe" /OUT:%TEMP%\libnode_merged.lib @liblist.txt
           if errorlevel 1 (echo MERGE FAILED — see diagnostics above & exit /b 1)
           rem Guard so the N-API-dropped regression can never ship green again.
-          dumpbin /symbols %TEMP%\libnode_merged.lib | findstr /c:"napi_create_function" >nul
+          "%LLVMBIN%llvm-nm.exe" %TEMP%\libnode_merged.lib 2>nul | findstr /c:"napi_create_function" >nul
           if errorlevel 1 (echo FATAL: merged libnode.lib has NO napi_create_function & exit /b 1)
           echo OK: N-API present in merged libnode.lib
           move /y %TEMP%\libnode_merged.lib ..\..\..\..\out\windows-x86_64\libnode.lib
