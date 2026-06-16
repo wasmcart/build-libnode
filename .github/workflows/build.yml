@@ -81,7 +81,13 @@ jobs:
         shell: cmd
         run: |
           cd node-src
-          call vcbuild.bat release ltcg static no-cctest without-intl nonpm
+          rem NO ltcg: with link-time codegen, every .obj (in libs AND on disk) is
+          rem LTCG intermediate bitcode, not real COFF — so the napi objects can't
+          rem be merged into the fat libnode.lib (lib.exe -> LNK1136). Node 26
+          rem seals N-API only inside its own libnode.lib; we must merge the napi
+          rem objects in, which requires real COFF objects. Dropping ltcg makes
+          rem them mergeable (v24's lib worked because it wasn't blocked here).
+          call vcbuild.bat release static no-cctest without-intl nonpm
       - name: Merge libs
         shell: cmd
         run: |
