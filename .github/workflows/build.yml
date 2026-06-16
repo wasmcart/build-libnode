@@ -118,11 +118,14 @@ jobs:
           rem the napi_* symbols. Write the output OUTSIDE this dir so the *.lib
           rem glob never sees it as both input and output (that was the LNK1107).
           echo ===== .lib files present ===== & dir /b *.lib
-          rem Merge the component libs EXCLUDING the self-emitted libnode.lib
-          rem (which can be a special/unreadable form), PLUS the on-disk napi
-          rem objects (real COFF now that LTO is off) so N-API is definitely in.
-          (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
-          for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj ..\..\Release\obj\node_api.obj 2^>nul') do @echo %%o>> liblist.txt
+          rem Merge ALL *.lib INCLUDING the self-emitted libnode.lib. With LTO off
+          rem it is a normal COFF archive (verified: 3398 members) and it holds the
+          rem node:: internals (Buffer::New, AsyncResource, MakeCallback,
+          rem CleanupQueue, ...) that node_api.obj references — excluding it left
+          rem 52 unresolved node:: externals in the consumer. Glob into a list and
+          rem write the OUTPUT to %TEMP% so lib.exe is never fed its own output
+          rem (the in-dir output was the original LNK1107). This is the v24 recipe.
+          (for /f "delims=" %%f in ('dir /b *.lib') do @echo %%f) > liblist.txt
           echo ===== merge inputs ===== & type liblist.txt
           lib.exe /OUT:%TEMP%\libnode_merged.lib @liblist.txt
           if errorlevel 1 (echo MERGE FAILED & exit /b 1)
