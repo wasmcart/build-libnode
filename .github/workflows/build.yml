@@ -110,12 +110,16 @@ jobs:
           dumpbin /symbols libnode.lib 2>nul | findstr /c:"napi_create_function" && echo LIBNODE_HAS_NAPI || echo libnode.lib has NO napi
           echo ===== headers of the on-disk napi obj (COFF vs anon/LTCG?) =====
           for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj 2^>nul') do dumpbin /headers "%%o" | findstr /i /c:"machine" /c:"anonymous" /c:"LTCG" /c:"FILE HEADER"
-          rem ── MERGE (v24-proven recipe: wholesale *.lib including libnode.lib).
-          rem v24 ran `lib /OUT:<elsewhere> *.lib` and it WORKED — lib.exe DOES
-          rem accept .lib inputs. The LNK1107 earlier was the input==output
-          rem COLLISION (output landing in the same dir as the *.lib glob). Fix:
-          rem write the output OUTSIDE this dir so the glob never sees it.
-          lib.exe /OUT:%TEMP%\libnode_merged.lib *.lib
+          rem ── MERGE. Diagnostics proved: (a) the self-emitted libnode.lib does
+          rem NOT contain napi AND is unreadable by lib.exe (LNK1107) — so EXCLUDE
+          rem it; (b) the napi objects live on disk at out\Release\obj\libnode\src\
+          rem as LTCG-thin objects. lib.exe reads LTCG objects ONLY with /LTCG.
+          rem So: merge the component *.lib (minus libnode.lib) PLUS the on-disk
+          rem napi objects, all under /LTCG. Output to %TEMP% (avoid glob collision).
+          (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
+          for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj ..\..\Release\obj\node_api.obj 2^>nul') do @echo %%o>> liblist.txt
+          echo ===== merge inputs ===== & type liblist.txt
+          lib.exe /LTCG /OUT:%TEMP%\libnode_merged.lib @liblist.txt
           if errorlevel 1 (echo MERGE FAILED — see diagnostics above & exit /b 1)
           rem Guard so the N-API-dropped regression can never ship green again.
           dumpbin /symbols %TEMP%\libnode_merged.lib | findstr /c:"napi_create_function" >nul
