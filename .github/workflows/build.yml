@@ -81,10 +81,23 @@ jobs:
         shell: cmd
         run: |
           cd node-src
-          rem Match the proven v24.14.1 flags EXACTLY (it built a valid napi lib):
-          rem release ltcg static. The Windows fix is in the Merge step (output
-          rem collision), not here — keep ltcg.
-          call vcbuild.bat release ltcg static no-cctest without-intl nonpm
+          rem NO LTO. Node 24+ forces clang-cl, and `release` force-enables ltcg
+          rem (= Thin LTO). With LTO, libnode-scoped objects (incl the N-API
+          rem js_native_api_v8.obj / node_api.obj) are LLVM BITCODE, which neither
+          rem MSVC lib.exe (LNK1136) nor the downstream MSVC link.exe (unresolved
+          rem napi_* / __imp_log1pf) can consume — confirmed end-to-end. configure
+          rem only adds LTO via --with-ltcg (opt-in), but `vcbuild release` hard-
+          rem sets ltcg=1 (line: release -> set ltcg=1) with no un-set token. So
+          rem strip that one assignment from vcbuild.bat before calling it: build
+          rem stays Release+optimized but emits REAL COFF objects that lib.exe and
+          rem link.exe consume natively (the v24-style wholesale *.lib merge then
+          rem just works). Tradeoff: slightly slower/larger libnode — acceptable.
+          rem Strip the single `&set ltcg=1` (release line only; the standalone
+          rem `set ltcg=1` on the ltcg-token line has no leading & and is left
+          rem intact). Literal replace — no regex escaping surprises.
+          powershell -Command "(Get-Content vcbuild.bat -Raw).Replace('&set ltcg=1','') | Set-Content -NoNewline vcbuild.bat"
+          echo ===== confirm release line no longer sets ltcg ===== & findstr /c:"==\"release\"" vcbuild.bat
+          call vcbuild.bat release static no-cctest without-intl nonpm
       - name: Merge libs
         shell: cmd
         run: |
@@ -99,35 +112,23 @@ jobs:
           where lib.exe >nul 2>&1 || (echo FATAL: lib.exe not on PATH after vcvars & exit /b 1)
           mkdir out\windows-x86_64
           cd node-src\out\Release\lib
-          rem ── DIAGNOSTICS (one run to learn the real file natures) ────────────
-          rem Several merge strategies failed (LNK1107 feeding a .lib; LNK1136 on
-          rem extracted AND on-disk napi objs). Before guessing again, dump WHAT
-          rem these files actually are: dumpbin /headers reports COFF vs LTCG/
-          rem anonymous-object, and whether libnode.lib carries the napi symbols.
-          echo ===== which .lib files are in Release\lib =====
-          dir /b *.lib
-          echo ===== does the self-emitted libnode.lib define napi_create_function? =====
-          dumpbin /symbols libnode.lib 2>nul | findstr /c:"napi_create_function" && echo LIBNODE_HAS_NAPI || echo libnode.lib has NO napi
-          echo ===== headers of the on-disk napi obj (COFF vs anon/LTCG?) =====
-          for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj 2^>nul') do dumpbin /headers "%%o" | findstr /i /c:"machine" /c:"anonymous" /c:"LTCG" /c:"FILE HEADER"
-          rem ── MERGE. Diagnostics proved Node 26's Windows build uses CLANG-CL
-          rem (--clang-cl=20.1.8) with LTCG, so the .obj/.lib members are LLVM
-          rem BITCODE, which MSVC lib.exe cannot read (LNK1136/LNK1107) even with
-          rem /LTCG (that flag is for MSVC LTCG, not LLVM bitcode). The matching
-          rem archiver is LLVM's llvm-lib, which ships with the clang-cl toolset.
-          rem So: archive with llvm-lib. Exclude the unreadable self-emitted
-          rem libnode.lib (it has no napi anyway); add the on-disk napi objects.
-          rem Locate llvm-lib from the LLVM install (clang-cl is on PATH).
-          for /f "delims=" %%c in ('where clang-cl') do set "LLVMBIN=%%~dpc"
-          echo LLVM bin: %LLVMBIN%
-          if not exist "%LLVMBIN%llvm-lib.exe" (echo FATAL: llvm-lib.exe not found next to clang-cl & where clang-cl & exit /b 1)
+          rem MERGE all component libs into one fat libnode.lib (v24-proven
+          rem recipe). With LTO disabled the objects are REAL COFF, so plain
+          rem MSVC lib.exe archives them and the downstream MSVC link.exe resolves
+          rem the napi_* symbols. Write the output OUTSIDE this dir so the *.lib
+          rem glob never sees it as both input and output (that was the LNK1107).
+          echo ===== .lib files present ===== & dir /b *.lib
+          rem Merge the component libs EXCLUDING the self-emitted libnode.lib
+          rem (which can be a special/unreadable form), PLUS the on-disk napi
+          rem objects (real COFF now that LTO is off) so N-API is definitely in.
           (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
           for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj ..\..\Release\obj\node_api.obj 2^>nul') do @echo %%o>> liblist.txt
           echo ===== merge inputs ===== & type liblist.txt
-          "%LLVMBIN%llvm-lib.exe" /OUT:%TEMP%\libnode_merged.lib @liblist.txt
-          if errorlevel 1 (echo MERGE FAILED — see diagnostics above & exit /b 1)
-          rem Guard so the N-API-dropped regression can never ship green again.
-          "%LLVMBIN%llvm-nm.exe" %TEMP%\libnode_merged.lib 2>nul | findstr /c:"napi_create_function" >nul
+          lib.exe /OUT:%TEMP%\libnode_merged.lib @liblist.txt
+          if errorlevel 1 (echo MERGE FAILED & exit /b 1)
+          rem Guard so the N-API-dropped regression can never ship green again:
+          rem the merged lib MUST define napi_create_function (real COFF symbol now).
+          dumpbin /symbols %TEMP%\libnode_merged.lib | findstr /c:"napi_create_function" >nul
           if errorlevel 1 (echo FATAL: merged libnode.lib has NO napi_create_function & exit /b 1)
           echo OK: N-API present in merged libnode.lib
           move /y %TEMP%\libnode_merged.lib ..\..\..\..\out\windows-x86_64\libnode.lib
