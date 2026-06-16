@@ -81,13 +81,10 @@ jobs:
         shell: cmd
         run: |
           cd node-src
-          rem NO ltcg: with link-time codegen, every .obj (in libs AND on disk) is
-          rem LTCG intermediate bitcode, not real COFF — so the napi objects can't
-          rem be merged into the fat libnode.lib (lib.exe -> LNK1136). Node 26
-          rem seals N-API only inside its own libnode.lib; we must merge the napi
-          rem objects in, which requires real COFF objects. Dropping ltcg makes
-          rem them mergeable (v24's lib worked because it wasn't blocked here).
-          call vcbuild.bat release static no-cctest without-intl nonpm
+          rem Match the proven v24.14.1 flags EXACTLY (it built a valid napi lib):
+          rem release ltcg static. The Windows fix is in the Merge step (output
+          rem collision), not here — keep ltcg.
+          call vcbuild.bat release ltcg static no-cctest without-intl nonpm
       - name: Merge libs
         shell: cmd
         run: |
@@ -102,47 +99,29 @@ jobs:
           where lib.exe >nul 2>&1 || (echo FATAL: lib.exe not on PATH after vcvars & exit /b 1)
           mkdir out\windows-x86_64
           cd node-src\out\Release\lib
-          rem Merge ALL component libs into one fat libnode.lib — this matches the
-          rem proven v24.14.1 recipe (which merged *.lib wholesale and shipped a
-          rem valid ~557MB-zipped asset). A Windows static libnode.lib is genuinely
-          rem multi-GB uncompressed (all of V8 + OpenSSL + Node, no member dedup);
-          rem the downstream linker drops unused members. Do NOT try to slim it.
-          rem
-          rem Node 26 emits its OWN libnode.lib here, and it is NOT a duplicate of
-          rem the component libs — it ALONE holds the N-API objects
-          rem (js_native_api_v8.obj / node_api.obj) and the CRT math import
-          rem (log1pf). v24 had these in an obj/libnode group that got merged; v26
-          rem only ships them inside libnode.lib. The old recipe EXCLUDED
-          rem libnode.lib (to dodge LNK1107 from feeding it as both in+out) -> all
-          rem of N-API was dropped -> downstream LNK2001 napi_* / __imp_log1pf.
-          rem
-          rem lib.exe can't merge a static .lib as a member (LNK1107), and
-          rem EXTRACTING members from this LTCG archive yields thin LTCG bitcode,
-          rem not real COFF (LNK1136). So use the REAL on-disk object files that
-          rem vcbuild wrote under out\Release\obj before archiving — those are the
-          rem genuine js_native_api_v8.obj / node_api.obj. Find them on disk and
-          rem add them (as objects) to the component-lib merge, like v24 did.
-          (for /f "delims=" %%f in ('dir /b *.lib ^| findstr /v /i /c:"libnode.lib"') do @echo %%f) > liblist.txt
-          rem Append the REAL on-disk napi objects. cwd is node-src\out\Release\lib;
-          rem search the WHOLE out tree (..\.. = out\Release) so we don't depend on
-          rem the exact obj subdir layout. dir /s prints full paths.
-          del napilist.txt 2>nul
-          for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj ..\..\Release\obj\node_api.obj 2^>nul') do (
-            echo found napi obj: %%o
-            echo %%o>> liblist.txt
-            echo %%o>> napilist.txt
-          )
-          rem Fail loud if the on-disk napi objects were not found at all.
-          if not exist napilist.txt (echo FATAL: no on-disk js_native_api_v8.obj/node_api.obj under out\Release\obj — dumping tree for diagnosis & dir /b /s ..\..\Release\obj\*napi*.obj ..\..\Release\obj\*node_api*.obj & exit /b 1)
-          type liblist.txt
-          lib.exe /OUT:libnode_merged.lib @liblist.txt
-          if errorlevel 1 exit /b 1
-          rem Guard so the N-API-dropped regression can never ship green again:
-          rem the merged lib MUST define napi_create_function. Fail hard if absent.
-          dumpbin /symbols libnode_merged.lib | findstr /c:"napi_create_function" >nul
-          if errorlevel 1 (echo FATAL: merged libnode.lib has NO napi_create_function — N-API objects missing & exit /b 1)
+          rem ── DIAGNOSTICS (one run to learn the real file natures) ────────────
+          rem Several merge strategies failed (LNK1107 feeding a .lib; LNK1136 on
+          rem extracted AND on-disk napi objs). Before guessing again, dump WHAT
+          rem these files actually are: dumpbin /headers reports COFF vs LTCG/
+          rem anonymous-object, and whether libnode.lib carries the napi symbols.
+          echo ===== which .lib files are in Release\lib =====
+          dir /b *.lib
+          echo ===== does the self-emitted libnode.lib define napi_create_function? =====
+          dumpbin /symbols libnode.lib 2>nul | findstr /c:"napi_create_function" && echo LIBNODE_HAS_NAPI || echo libnode.lib has NO napi
+          echo ===== headers of the on-disk napi obj (COFF vs anon/LTCG?) =====
+          for /f "delims=" %%o in ('dir /b /s ..\..\Release\obj\js_native_api_v8.obj 2^>nul') do dumpbin /headers "%%o" | findstr /i /c:"machine" /c:"anonymous" /c:"LTCG" /c:"FILE HEADER"
+          rem ── MERGE (v24-proven recipe: wholesale *.lib including libnode.lib).
+          rem v24 ran `lib /OUT:<elsewhere> *.lib` and it WORKED — lib.exe DOES
+          rem accept .lib inputs. The LNK1107 earlier was the input==output
+          rem COLLISION (output landing in the same dir as the *.lib glob). Fix:
+          rem write the output OUTSIDE this dir so the glob never sees it.
+          lib.exe /OUT:%TEMP%\libnode_merged.lib *.lib
+          if errorlevel 1 (echo MERGE FAILED — see diagnostics above & exit /b 1)
+          rem Guard so the N-API-dropped regression can never ship green again.
+          dumpbin /symbols %TEMP%\libnode_merged.lib | findstr /c:"napi_create_function" >nul
+          if errorlevel 1 (echo FATAL: merged libnode.lib has NO napi_create_function & exit /b 1)
           echo OK: N-API present in merged libnode.lib
-          move /y libnode_merged.lib ..\..\..\..\out\windows-x86_64\libnode.lib
+          move /y %TEMP%\libnode_merged.lib ..\..\..\..\out\windows-x86_64\libnode.lib
       - name: Collect headers
         shell: bash
         run: |
