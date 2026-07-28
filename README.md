@@ -1,6 +1,9 @@
 # build-libnode
 
-Pre-built libnode (V8 + libuv + Node embedding API) static libraries, built once per Node.js version and per platform so downstream projects link in seconds instead of compiling V8 from source.
+Pre-built libnode ([V8](https://v8.dev) + [libuv](https://libuv.org) +
+[Node.js](https://nodejs.org) embedding API) static libraries, built once per Node.js
+version and per platform so downstream projects link in seconds instead of compiling
+V8 from source.
 
 Used by:
 
@@ -9,7 +12,10 @@ Used by:
 
 ## Why
 
-These projects use V8 (via libnode) as their runtime. V8's Liftoff baseline compiler starts execution immediately — a 52MB Godot WASM game engine loads in 356ms, compared to 29 seconds with wasmtime's full ahead-of-time compilation.
+These projects use V8 (via libnode) as their runtime. V8's
+[Liftoff](https://v8.dev/blog/liftoff) baseline compiler starts execution immediately
+— a 52MB [Godot](https://godotengine.org) WASM game engine loads in 356ms, compared
+to 29 seconds with [wasmtime](https://wasmtime.dev)'s full ahead-of-time compilation.
 
 Building libnode from source takes 20-30 minutes per platform. This repo does that once per Node.js version and publishes pre-built binaries so downstream projects build in seconds.
 
@@ -44,7 +50,7 @@ Download the archive for your target platform and point your build at it:
 ```bash
 # Download
 mkdir -p deps/libnode
-curl -sL https://github.com/wasmcart/build-libnode/releases/download/v26.3.0/libnode-linux-x86_64.tar.gz \
+curl -sL https://github.com/wasmcart/build-libnode/releases/download/v26.3.0-jsg9/libnode-linux-x86_64.tar.gz \
   | tar xz -C deps/libnode
 
 # Build (cmake)
@@ -75,10 +81,12 @@ This strips out everything not needed for WASM execution:
 - `--fully-static` — build as static library (libnode.a)
 - `--without-npm` — no package manager
 - `--without-inspector` — no Chrome DevTools protocol
-- `--without-intl` — no full ICU internationalization (~25MB savings)
+- `--without-intl` — no full [ICU](https://icu.unicode.org) internationalization (~25MB savings)
 - `--without-corepack` — no package manager shims
 
-What remains: V8 (WASM + JS engine), libuv (event loop), OpenSSL (crypto), zlib, and the Node.js C++ embedding API.
+What remains: V8 (WASM + JS engine), [libuv](https://libuv.org) (event loop),
+[OpenSSL](https://www.openssl.org) (crypto), [zlib](https://zlib.net), and the
+Node.js C++ embedding API.
 
 ## Build locally
 
@@ -95,7 +103,7 @@ Output: `out/<platform>-<arch>/`
 ### Android (cross-compile)
 
 ```bash
-# Requires Android NDK
+# Requires the Android NDK: https://developer.android.com/ndk
 NDK_PATH=/path/to/android-ndk ./build-android.sh
 ./build-android.sh --node-version 24.14.1 --ndk /path/to/ndk
 ```
@@ -129,5 +137,17 @@ Build times: ~20-30 minutes per target. All 6 run in parallel so total wall time
 ## Versioning
 
 Releases are tagged with the Node.js version they're built from (e.g. `v24.14.1`). The `NODE_VERSION` file in each archive contains this version for programmatic access.
+
+When the packaging changes but the Node.js version does not — a build-flag fix, a
+Windows archive-format fix, an added header — the rebuild gets a `-jsgN` suffix on
+the same version (`v26.3.0`, `v26.3.0-jsg4`, … `v26.3.0-jsg9`). The Node.js source
+is identical across those; only how the library is built and packaged differs, so
+the highest `-jsgN` for a given version is the one to use. That is what the
+downstream projects pin:
+
+```
+wasmcart-native   .github/workflows/build.yml   LIBNODE_VERSION: v26.3.0-jsg9
+wasmcart-libretro README build step             v26.3.0-jsg9
+```
 
 Downstream projects pin to a specific build-libnode release version. Bump when ready — there's no auto-update of downstream.
