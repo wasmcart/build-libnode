@@ -6,6 +6,7 @@ import { strict as assert } from 'node:assert';
 import { statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import * as libnode from '../index.js';
 
 assert.ok(libnode.installed(), `libnode not installed at ${libnode.dir}`);
@@ -21,7 +22,8 @@ assert.equal(libnode.nodeVersion, libnode.prebuilds.nodeVersion);
 assert.ok(libnode.cflags().includes(libnode.includeDir));
 assert.ok(libnode.libs().startsWith(libnode.lib));
 
-const cli = (flag) => execFileSync(process.execPath, [new URL('../bin/libnode-config.js', import.meta.url).pathname, flag], { encoding: 'utf8' }).trim();
+const cliPath = fileURLToPath(new URL('../bin/libnode-config.js', import.meta.url));
+const cli = (flag) => execFileSync(process.execPath, [cliPath, flag], { encoding: 'utf8' }).trim();
 assert.equal(cli('--dir'), libnode.dir);
 assert.equal(cli('--node-version'), libnode.nodeVersion);
 assert.ok(cli('--libs').length > 0);
