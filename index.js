@@ -79,7 +79,7 @@ export function cflags() {
  */
 export function libs() {
   if (target.startsWith('windows')) {
-    return `${lib} winmm.lib dbghelp.lib ws2_32.lib crypt32.lib iphlpapi.lib psapi.lib userenv.lib bcrypt.lib`;
+    return `${lib} winmm.lib dbghelp.lib ws2_32.lib crypt32.lib iphlpapi.lib psapi.lib userenv.lib bcrypt.lib user32.lib advapi32.lib shell32.lib ole32.lib`;
   }
   if (target.startsWith('macos')) {
     return `${lib} -pthread -ldl -lm -framework Security -framework CoreFoundation`;

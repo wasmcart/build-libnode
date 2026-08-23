@@ -38,6 +38,19 @@ jobs:
           // member and its transitive deps (node:: internals, V8) out of the
           // merged archive. This is the exact resolution that broke in the
           // Windows LTO regression, now guarded end to end.
+          //
+          // The snapshot stub is part of the embedder contract: mksnapshot
+          // emits GetEmbeddedSnapshotData into the node BINARY, never the
+          // library, so every embedder supplies the null-snapshot stub.
+          // wasmcart-native and jsgame-libretro carry these same lines.
+          namespace node {
+            struct SnapshotData;
+            class SnapshotBuilder {
+             public:
+              static const SnapshotData* GetEmbeddedSnapshotData();
+            };
+            const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() { return nullptr; }
+          }
           #include <node_api.h>
           int main() {
             void *p = (void *)&napi_create_function;
