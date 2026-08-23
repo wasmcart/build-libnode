@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# build-android.sh — Cross-compile libnode shared library for Android aarch64
+# build-android.sh - Cross-compile libnode shared library for Android aarch64
 #
 # Requires: Android NDK (set ANDROID_NDK_HOME or NDK_PATH)
 #
@@ -47,7 +47,7 @@ rm -rf out/
 sed -i 's/#define V8_TRAP_HANDLER_SUPPORTED true/#define V8_TRAP_HANDLER_SUPPORTED false/' \
     deps/v8/src/trap-handler/trap-handler.h
 
-# Patch 2: V8 TLS model — local-exec can't link into shared libraries (.so)
+# Patch 2: V8 TLS model: local-exec can't link into shared libraries (.so)
 TLS_HEADER="deps/v8/src/common/thread-local-storage.h"
 if grep -q '"local-exec"' "$TLS_HEADER" 2>/dev/null; then
     echo "Patching V8 TLS model: local-exec → global-dynamic"
@@ -66,12 +66,12 @@ export CFLAGS="${CFLAGS:-} -fPIC -ftls-model=global-dynamic"
 export CXXFLAGS="${CXXFLAGS:-} -fPIC -ftls-model=global-dynamic"
 
 echo "Configuring for Android aarch64..."
-# API level 33+ required — Bionic libc needs API 33 for backtrace functions used by V8
+# API level 33+ required: Bionic libc needs API 33 for backtrace functions used by V8
 ./android-configure "$NDK" 33 arm64
 
 NPROC=$(nproc 2>/dev/null || echo 4)
 echo "Building with ${NPROC} jobs..."
-# The node binary link may fail (we don't need it) — libnode.so is the target
+# The node binary link may fail (we don't need it); libnode.so is the target
 make -j"$NPROC" || true
 
 
@@ -86,10 +86,10 @@ echo "Packing $OBJ_COUNT object files..."
 # Sanity gate: `make ... || true` above tolerates the expected node-binary link
 # failure, but it ALSO masks a total compile failure (e.g. NDK clang too old for
 # this Node version). A real V8 build emits thousands of objects; if we have only
-# a handful, the build silently produced a stub — fail HARD rather than ship a
+# a handful, the build silently produced a stub; fail HARD rather than ship a
 # broken ~4MB "libnode" that passes CI and poisons the release.
 if [ "$OBJ_COUNT" -lt 1000 ]; then
-    echo "FATAL: only $OBJ_COUNT object files (expected >1000) — V8 did not compile." >&2
+    echo "FATAL: only $OBJ_COUNT object files (expected >1000); V8 did not compile." >&2
     echo "       Check the configure-phase compiler-version warning above." >&2
     exit 1
 fi
@@ -99,7 +99,7 @@ ar rcs "$OUT_DIR/libnode.a" $OBJ_FILES
 # Plausibility gate on the archive itself (real libnode.a is ~100-160MB).
 A_BYTES=$(stat -c%s "$OUT_DIR/libnode.a" 2>/dev/null || stat -f%z "$OUT_DIR/libnode.a")
 if [ "$A_BYTES" -lt 50000000 ]; then
-    echo "FATAL: libnode.a is ${A_BYTES} bytes (expected >50MB) — not a real build." >&2
+    echo "FATAL: libnode.a is ${A_BYTES} bytes (expected >50MB); not a real build." >&2
     exit 1
 fi
 echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1) ($OBJ_COUNT objects, ${A_BYTES} bytes)"

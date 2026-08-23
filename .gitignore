@@ -1,5 +1,8 @@
 node-src/
 out/
+libnode/
+node_modules/
+.download-*
 *.tar.gz
 *.zip
-node-src
+*.tgz

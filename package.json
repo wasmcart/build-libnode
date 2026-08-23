@@ -1,0 +1,31 @@
+{
+  "name": "libnode-prebuilt",
+  "version": "0.1.0",
+  "description": "Pre-built libnode (V8 + libuv + Node.js embedding API) static libraries. Downloads the archive for your platform at install time, verified against pinned sha256 digests.",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "libnode-config": "bin/libnode-config.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "test": "node test/smoke.mjs",
+    "update-prebuilds": "node scripts/update-prebuilds.mjs"
+  },
+  "files": [
+    "index.js",
+    "install.js",
+    "bin/",
+    "prebuilds.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wasmcart/build-libnode.git"
+  },
+  "keywords": ["libnode", "v8", "embedding", "wasm", "static-library", "prebuilt"],
+  "author": "Luis Montes",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

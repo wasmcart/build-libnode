@@ -1,0 +1,37 @@
+{
+  "release": "v26.3.0-jsg9",
+  "nodeVersion": "26.3.0",
+  "baseUrl": "https://github.com/wasmcart/build-libnode/releases/download",
+  "targets": {
+    "android-aarch64": {
+      "file": "libnode-android-aarch64.tar.gz",
+      "sha256": "2a134f7774c439e11fbe310558c7007f278e12a46f49acd311cd85bb2ae39f6a",
+      "size": 44177139
+    },
+    "linux-aarch64": {
+      "file": "libnode-linux-aarch64.tar.gz",
+      "sha256": "2cb2c1201efa838b01474000cdd554f48bb06cb029248d1306715c7029560c57",
+      "size": 64824543
+    },
+    "linux-x86_64": {
+      "file": "libnode-linux-x86_64.tar.gz",
+      "sha256": "02547eb8a43ee6b0f22519c008cfc5817ea5c8099d895a8d643e1623b3f16894",
+      "size": 64610195
+    },
+    "macos-aarch64": {
+      "file": "libnode-macos-aarch64.tar.gz",
+      "sha256": "bc8627a09b32af56173ed60e11df23f1893fdc3c5c4daa9217a090c464c7cb38",
+      "size": 46024356
+    },
+    "macos-x86_64": {
+      "file": "libnode-macos-x86_64.tar.gz",
+      "sha256": "59f1779dc649c8c7c6abc42e32aa0d6ccf6ddbc360060002a0967335321eaa50",
+      "size": 50484048
+    },
+    "windows-x86_64": {
+      "file": "libnode-windows-x86_64.zip",
+      "sha256": "956490fc393564890cfe70f9a7e4761216526cd028eefc1b26d4d8d03d10a427",
+      "size": 846028625
+    }
+  }
+}

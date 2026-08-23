@@ -1,0 +1,73 @@
+name: npm package
+
+on:
+  push:
+    paths:
+      - package.json
+      - prebuilds.json
+      - index.js
+      - install.js
+      - 'bin/**'
+      - 'test/**'
+      - 'scripts/**'
+      - '.github/workflows/npm-test.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  install-and-link:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install prebuilt (download + sha256 verify + extract)
+        run: node install.js
+      - name: Smoke test
+        run: node test/smoke.mjs
+      - name: Write link test
+        shell: bash
+        run: |
+          cat > linktest.cpp << 'CPP'
+          // Referencing napi_create_function forces the linker to pull that
+          // member and its transitive deps (node:: internals, V8) out of the
+          // merged archive. This is the exact resolution that broke in the
+          // Windows LTO regression, now guarded end to end.
+          #include <node_api.h>
+          int main() {
+            void *p = (void *)&napi_create_function;
+            return p ? 0 : 1;
+          }
+          CPP
+      - name: Link test
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          c++ linktest.cpp $(node bin/libnode-config.js --cflags) $(node bin/libnode-config.js --libs) -o linktest
+          ./linktest
+          echo "link + run OK"
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Link test (MSVC)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          rem /MT matches vcbuild static's CRT; a /MD link would LNK2038.
+          for /f "delims=" %%i in ('node bin\libnode-config.js --include') do set "INC=%%i"
+          for /f "delims=" %%i in ('node bin\libnode-config.js --libs') do set "LIBS=%%i"
+          cl /nologo /MT /std:c++20 /Zc:__cplusplus /I "%INC%" linktest.cpp /link %LIBS%
+          linktest.exe
+          echo link + run OK
+      - name: Cross-fetch test (android target from a linux host)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          rm -rf libnode
+          LIBNODE_TARGET=android-aarch64 node install.js
+          test -f libnode/libnode.a
+          grep -q . libnode/NODE_VERSION
+          echo "cross-fetch OK"

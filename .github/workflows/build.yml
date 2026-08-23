@@ -85,16 +85,16 @@ jobs:
           rem (= Thin LTO). With LTO, libnode-scoped objects (incl the N-API
           rem js_native_api_v8.obj / node_api.obj) are LLVM BITCODE, which neither
           rem MSVC lib.exe (LNK1136) nor the downstream MSVC link.exe (unresolved
-          rem napi_* / __imp_log1pf) can consume — confirmed end-to-end. configure
+          rem napi_* / __imp_log1pf) can consume; confirmed end-to-end. configure
           rem only adds LTO via --with-ltcg (opt-in), but `vcbuild release` hard-
           rem sets ltcg=1 (line: release -> set ltcg=1) with no un-set token. So
           rem strip that one assignment from vcbuild.bat before calling it: build
           rem stays Release+optimized but emits REAL COFF objects that lib.exe and
           rem link.exe consume natively (the v24-style wholesale *.lib merge then
-          rem just works). Tradeoff: slightly slower/larger libnode — acceptable.
+          rem just works). Tradeoff: slightly slower/larger libnode; acceptable.
           rem Strip the single `&set ltcg=1` (release line only; the standalone
           rem `set ltcg=1` on the ltcg-token line has no leading & and is left
-          rem intact). Literal replace — no regex escaping surprises.
+          rem intact). Literal replace; no regex escaping surprises.
           powershell -Command "(Get-Content vcbuild.bat -Raw).Replace('&set ltcg=1','') | Set-Content -NoNewline vcbuild.bat"
           echo ===== confirm release line no longer sets ltcg ===== & findstr /c:"==\"release\"" vcbuild.bat
           call vcbuild.bat release static no-cctest without-intl nonpm
@@ -102,7 +102,7 @@ jobs:
         shell: cmd
         run: |
           rem Locate vcvarsall.bat via vswhere instead of hardcoding the VS
-          rem year/edition — the GitHub windows runner image moves between VS
+          rem year/edition; the GitHub windows runner image moves between VS
           rem versions (e.g. 2022 -> 2026/v18), and a missing hardcoded path
           rem silently no-ops the `call`, leaving lib.exe off PATH ("'lib.exe'
           rem is not recognized"). vswhere lives at a fixed location.
@@ -121,7 +121,7 @@ jobs:
           rem Merge ALL *.lib INCLUDING the self-emitted libnode.lib. With LTO off
           rem it is a normal COFF archive (verified: 3398 members) and it holds the
           rem node:: internals (Buffer::New, AsyncResource, MakeCallback,
-          rem CleanupQueue, ...) that node_api.obj references — excluding it left
+          rem CleanupQueue, ...) that node_api.obj references; excluding it left
           rem 52 unresolved node:: externals in the consumer. Glob into a list and
           rem write the OUTPUT to %TEMP% so lib.exe is never fed its own output
           rem (the in-dir output was the original LNK1107). This is the v24 recipe.
@@ -147,12 +147,12 @@ jobs:
           cat NODE_VERSION > out/windows-x86_64/NODE_VERSION
           ls -lh out/windows-x86_64/libnode.lib
           # Stub guard only: a real merged libnode.lib is large (multi-GB
-          # uncompressed on Windows — all of V8/OpenSSL/Node, no member dedup;
-          # v24.14.1 shipped ~557MB zipped). NO upper bound — a big .lib is
+          # uncompressed on Windows: all of V8/OpenSSL/Node, no member dedup;
+          # v24.14.1 shipped ~557MB zipped). NO upper bound; a big .lib is
           # correct here; the downstream linker strips unused members.
           SZ=$(stat -c%s out/windows-x86_64/libnode.lib 2>/dev/null || stat -f%z out/windows-x86_64/libnode.lib)
           if [ "$SZ" -lt 50000000 ]; then
-            echo "FATAL: libnode.lib is ${SZ} bytes (expected >50MB) — merge produced a stub." >&2
+            echo "FATAL: libnode.lib is ${SZ} bytes (expected >50MB); merge produced a stub." >&2
             exit 1
           fi
       - name: Package
@@ -198,6 +198,11 @@ jobs:
         continue-on-error: true
         with:
           path: artifacts
+      - name: Checksums
+        run: |
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print0 \
+            | xargs -0 sha256sum | sed 's|artifacts/[^/]*/||' | sort -k2 > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -209,7 +214,7 @@ jobs:
             `--fully-static --without-npm --without-inspector --without-intl`
 
             Each archive contains `libnode.a` (or `.lib`), headers (Node.js + V8 + libuv), and a NODE_VERSION file.
-            Link statically into your binary — no runtime .so/.dll dependency.
+            Link statically into your binary; no runtime .so/.dll dependency.
           files: |
             artifacts/libnode-linux-x86_64/*.tar.gz
             artifacts/libnode-linux-aarch64/*.tar.gz
@@ -217,3 +222,4 @@ jobs:
             artifacts/libnode-macos-aarch64/*.tar.gz
             artifacts/libnode-windows-x86_64/*.zip
             artifacts/libnode-android-aarch64/*.tar.gz
+            SHA256SUMS.txt

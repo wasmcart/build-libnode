@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-# build.sh — Build libnode static library (.a) for the current platform
+# build.sh - Build libnode static library (.a) for the current platform
 #
 # Usage:
 #   ./build.sh                              # build for current platform
 #   ./build.sh --node-version 24.14.1       # specific version
 #
 # Output: out/<platform>-<arch>/
-#   libnode.a       — all deps merged, PIC-compatible (works in static binaries AND shared libs)
-#   include/        — node + v8 + uv headers
+#   libnode.a       - all deps merged, PIC-compatible (works in static binaries AND shared libs)
+#   include/        - node + v8 + uv headers
 #   NODE_VERSION
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -70,7 +70,7 @@ if grep -q '"local-exec"' "$TLS_HEADER" 2>/dev/null; then
 fi
 
 # Configure for static build with PIC (needed for libretro .so cores).
-# (--without-corepack was removed in Node 26 — corepack is no longer bundled,
+# (--without-corepack was removed in Node 26; corepack is no longer bundled,
 # so the flag no longer exists; --without-npm already drops the package manager.)
 CONFIGURE_FLAGS="--fully-static --without-npm --without-inspector --without-intl"
 export CFLAGS="${CFLAGS:-} -fPIC"
@@ -119,11 +119,11 @@ fi
 echo "libnode.a: $(du -sh "$OUT_DIR/libnode.a" | cut -f1)"
 
 # Plausibility gate: a real libnode.a is ~100-160MB. If the archive is tiny the
-# build silently produced a stub (bad toolchain, empty object set) — fail HARD so
+# build silently produced a stub (bad toolchain, empty object set); fail HARD so
 # CI can never publish a broken libnode that links but does nothing.
 A_BYTES=$(stat -c%s "$OUT_DIR/libnode.a" 2>/dev/null || stat -f%z "$OUT_DIR/libnode.a")
 if [ "$A_BYTES" -lt 50000000 ]; then
-    echo "FATAL: libnode.a is ${A_BYTES} bytes (expected >50MB) — not a real build." >&2
+    echo "FATAL: libnode.a is ${A_BYTES} bytes (expected >50MB); not a real build." >&2
     exit 1
 fi
 
