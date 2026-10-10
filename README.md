@@ -30,6 +30,7 @@ Grab the release for your platform from [Releases](https://github.com/wasmcart/b
 | `libnode-macos-x86_64.tar.gz` | macOS | x86_64 | Intel Macs |
 | `libnode-macos-aarch64.tar.gz` | macOS | aarch64 | Apple Silicon (M1/M2/M3/M4) |
 | `libnode-windows-x86_64.zip` | Windows | x86_64 | Desktop |
+| `libnode-windows-aarch64.zip` | Windows | aarch64 | Windows on ARM (Snapdragon laptops) |
 | `libnode-android-aarch64.tar.gz` | Android | aarch64 | Retroid, phones, tablets |
 
 ## Install via npm
@@ -198,11 +199,11 @@ New releases are made deliberately, not automatically. The V8 version in libnode
 
 ### What the CI does
 
-1. Runs 6 build jobs in parallel (one per target platform)
+1. Runs 7 build jobs in parallel (one per target platform)
 2. Each job clones Node.js source, configures, builds, and packages the output
-3. After all builds succeed, creates a GitHub Release with all 6 archives attached plus a `SHA256SUMS.txt`
+3. After all builds succeed, creates a GitHub Release with all 7 archives attached plus a `SHA256SUMS.txt`
 
-Build times: ~20-30 minutes per target. All 6 run in parallel so total wall time is ~30 minutes.
+Build times: ~20-30 minutes per target. All 7 run in parallel so total wall time is ~30 minutes.
 
 ## Versioning
 
